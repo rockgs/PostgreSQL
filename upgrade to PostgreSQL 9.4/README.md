@@ -43,6 +43,7 @@ pg_upgrade支持从8.3.x以及更新的版本的跨大版本升级, 使用LINK�
 加入YUM仓库
 
 ###安装zfs文件系统:
+
 ```
 [root@localhost ~]# yum localinstall --nogpgcheck http://download.zfsonlinux.org/epel/zfs-release.el7.noarch.rpm
 [root@localhost ~]#  yum install -y epel-release.noarch 
@@ -51,13 +52,16 @@ pg_upgrade支持从8.3.x以及更新的版本的跨大版本升级, 使用LINK�
 [root@localhost ~]# yum install  zfs 
 [root@localhost /]# modprobe zfs
 ```
+
 ###创建数据目录
+
 ```
 [root@localhost /]# mkdir data01
 [root@localhost /]# cd data01
 ```
 
 ###安装好ZFS后, 创建ZPOOL, 我们使用5个文件来模拟5块磁盘。
+
 ```
 [root@localhost disks]# dd if=/dev/zero of=./disk1 bs=8192k count=1024 oflag=direct
 [root@localhost disks]# dd if=/dev/zero of=./disk2 bs=8192k count=1024 oflag=direct
