@@ -19,15 +19,7 @@ A HA script for PostgreSQL with 2 HOST (one for primary, one for standby), Prima
   
   虚拟IP和角色的关系固定, 不会变化, 例如192.168.111.130对应primary角色, 那么不管怎么切换, 他们始终在一起(谁是primary,谁就会启动192.168.111.130).
   
-  部署视频参考:
-  
-  http://www.tudou.com/programs/view/bIbZ85SrsHM/
-  
-  http://www.tudou.com/programs/view/kdRPT6dSp_0/
-  
-  http://www.tudou.com/programs/view/I6bxk2u3xdY/
-
-=======================================
+  =======================================
 
 数据库角色转变和心跳原理 : 
 
@@ -148,4 +140,3 @@ master_standby角色, 循环检查
 ![逻辑4](https://github.com/digoal/PostgreSQL_HA_with_primary_standby_2vip/blob/master/m_s_4.png)
 
 # Author : Digoal zhou
-# Modi: Rock zhao
