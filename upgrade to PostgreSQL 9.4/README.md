@@ -63,17 +63,17 @@ pg_upgrade支持从8.3.x以及更新的版本的跨大版本升级, 使用LINK�
 
 ### 安装好ZFS后, 创建ZPOOL, 我们使用5个文件来模拟5块磁盘。
 ```
-[root@localhost disks]# dd if=/dev/zero of=./disk1 bs=8192k count=1024 oflag=direct
-[root@localhost disks]# dd if=/dev/zero of=./disk2 bs=8192k count=1024 oflag=direct
-[root@localhost disks]# dd if=/dev/zero of=./disk3 bs=8192k count=1024 oflag=direct
-[root@localhost disks]# dd if=/dev/zero of=./disk4 bs=8192k count=1024 oflag=direct
-[root@localhost disks]# dd if=/dev/zero of=./disk5 bs=8192k count=1024 oflag=direct
+[root@localhost /]# dd if=/dev/zero of=./disk1 bs=8192k count=1024 oflag=direct
+[root@localhost /]# dd if=/dev/zero of=./disk2 bs=8192k count=1024 oflag=direct
+[root@localhost /]# dd if=/dev/zero of=./disk3 bs=8192k count=1024 oflag=direct
+[root@localhost /]# dd if=/dev/zero of=./disk4 bs=8192k count=1024 oflag=direct
+[root@localhost /]# dd if=/dev/zero of=./disk5 bs=8192k count=1024 oflag=direct
 ```
 
 ### 创建zpool
 ```
-[root@localhost disks]# zpool create -o ashift=12 zp1 raidz /data01/disk1 /data01/disk2 /data01/disk3 /data01/disk4 /data01/disk5
-[root@localhost disks]# zpool status
+[root@localhost /]# zpool create -o ashift=12 zp1 raidz /data01/disk1 /data01/disk2 /data01/disk3 /data01/disk4 /data01/disk5
+[root@localhost /]# zpool status
   pool: zp1
  state: ONLINE
   scan: none requested
@@ -93,9 +93,9 @@ errors: No known data errors
 
 ### 设置zfs默认参数 
 ```
-[root@localhost disks]# zfs set atime=off zp1
-[root@localhost disks]# zfs set compression=lz4 zp1
-[root@localhost disks]# zfs set canmount=off zp1
+[root@localhost /]# zfs set atime=off zp1
+[root@localhost /]# zfs set compression=lz4 zp1
+[root@localhost /]# zfs set canmount=off zp1
 ```
 
 ### 规划一下数据库的目录结构.
@@ -134,7 +134,134 @@ zp1/tbs2        7.7G  128K  7.7G   1% /pgdata05
 [root@localhost /]# chown -R postgres:postgres /pgdata0*
 ```
 
-### 安装PostgreSQL 9.3.5，初始化
+### 安装依赖库，安装PostgreSQL 9.3.5，初始化
+```
+[root@localhost ~]# tar -xvf postgresql-9.3.5.tar.gz 
+[root@localhost ~]# yum -y install glib2 lrzsz sysstat e4fsprogs xfsprogs ntp readline-devel zlib zlib-devel openssl openssl-devel pam-devel libxml2-devel libxslt-devel python-devel tcl-devel gcc make smartmontools flex bison perl perl-devel perl-ExtUtils* OpenIPMI-tools openldap openldap-devel
+[root@localhost postgresql-9.3.5]# ./configure --prefix=/opt/pgsql9.3.5 --with-pgport=1921 --with-perl --with-tcl --with-python --with-openssl --with-pam --without-ldap --with-libxml --with-libxslt --enable-thread-safety --with-blocksize=32 --with-wal-blocksize=32 && gmake world && gmake install-world
+[root@localhost postgresql-9.3.5]# ln -s /opt/pgsql9.3.5 /opt/pgsql
+[root@localhost postgresql-9.3.5]# vi /etc/ld.so.conf
+/opt/pgsql/lib
+[root@localhost postgresql-9.3.5]# ldconfig
+[root@localhost postgresql-9.3.5]# ldconfig -p|grep /opt/pgsql
+        libpqwalreceiver.so (libc6,x86-64) => /opt/pgsql/lib/libpqwalreceiver.so
+        libpq.so.5 (libc6,x86-64) => /opt/pgsql/lib/libpq.so.5
+        libpq.so (libc6,x86-64) => /opt/pgsql/lib/libpq.so
+        libpgtypes.so.3 (libc6,x86-64) => /opt/pgsql/lib/libpgtypes.so.3
+        libpgtypes.so (libc6,x86-64) => /opt/pgsql/lib/libpgtypes.so
+        libecpg_compat.so.3 (libc6,x86-64) => /opt/pgsql/lib/libecpg_compat.so.3
+        libecpg_compat.so (libc6,x86-64) => /opt/pgsql/lib/libecpg_compat.so
+        libecpg.so.6 (libc6,x86-64) => /opt/pgsql/lib/libecpg.so.6
+        libecpg.so (libc6,x86-64) => /opt/pgsql/lib/libecpg.so
+[root@localhost postgresql-9.3.5]# vi /etc/profile
+export PATH=/opt/pgsql/bin:$PATH
+[root@localhost postgresql-9.3.5]# . /etc/profile
+[root@localhost postgresql-9.3.5]# which psql
+/opt/pgsql/bin/psql
+[root@localhost postgresql-9.3.5]# which pg_config
+/opt/pgsql/bin/pg_config
+```
+
+### 初始化数据库
+```
+# su - postgres
+$ vi .bash_profile
+export PS1="$USER@`/bin/hostname -s`-> "
+export PGPORT=1921
+export PGDATA=/pgdata01/pg_root
+export LANG=en_US.utf8
+export PGHOME=/opt/pgsql
+export LD_LIBRARY_PATH=$PGHOME/lib:/lib64:/usr/lib64:/usr/local/lib64:/lib:/usr/lib:/usr/local/lib:$LD_LIBRARY_PATH
+export DATE=`date +"%Y%m%d%H%M"`
+export PATH=$PGHOME/bin:$PATH:.
+export MANPATH=$PGHOME/share/man:$MANPATH
+export PGUSER=postgres
+export PGHOST=$PGDATA
+export PGDATABASE=postgres
+alias rm='rm -i'
+alias ll='ls -lh'
+postgres@localhost-> . ./.bash_profile
+postgres@localhost-> initdb -D $PGDATA -U postgres -E UTF8 --locale=C -W -X /pgdata02/pg_xlog
+```
+
+### 修改配置文件, 开启归档
+```
+vi pg_hba.conf
+host all all 0.0.0.0/0 md5
+
+vi postgresql.conf
+listen_addresses = '0.0.0.0'            # what IP address(es) to listen on;
+port = 1921                             # (change requires restart)
+max_connections = 100                   # (change requires restart)
+superuser_reserved_connections = 3      # (change requires restart)
+unix_socket_directories = '.'   # comma-separated list of directories
+unix_socket_permissions = 0700          # begin with 0 to use octal notation
+tcp_keepalives_idle = 60                # TCP_KEEPIDLE, in seconds;
+tcp_keepalives_interval = 10            # TCP_KEEPINTVL, in seconds;
+tcp_keepalives_count = 10               # TCP_KEEPCNT;
+shared_buffers = 512MB                  # min 128kB
+maintenance_work_mem = 512MB            # min 1MB
+vacuum_cost_delay = 10                  # 0-100 milliseconds
+vacuum_cost_limit = 10000               # 1-10000 credits
+bgwriter_delay = 10ms                   # 10-10000ms between rounds
+wal_level = hot_standby                 # minimal, archive, or hot_standby
+synchronous_commit = off                # synchronization level;
+wal_buffers = 16384kB                   # min 32kB, -1 sets based on shared_buffers
+wal_writer_delay = 10ms         # 1-10000 milliseconds
+checkpoint_segments = 32                # in logfile segments, min 1, 16MB each
+archive_mode = on               # allows archiving to be done
+archive_command = 'DIR="/pgdata03/pg_arch/`date +%F`";test -d $DIR || mkdir -p $DIR; cp %p $DIR/%f'               # command to use to archive a logfile segment
+archive_timeout = 600           # force a logfile segment switch after this
+effective_cache_size = 4096MB
+log_destination = 'csvlog'              # Valid values are combinations of
+logging_collector = on          # Enable capturing of stderr and csvlog
+log_directory = 'pg_log'                # directory where log files are written,
+log_filename = 'postgresql-%Y-%m-%d_%H%M%S.log' # log file name pattern,
+log_file_mode = 0600                    # creation mode for log files,
+log_truncate_on_rotation = on           # If on, an existing log file with the
+log_checkpoints = on
+log_connections = on
+log_disconnections = on
+log_error_verbosity = verbose           # terse, default, or verbose messages
+log_lock_waits = on                     # log lock waits >= deadlock_timeout
+log_statement = 'ddl'                   # none, ddl, mod, all
+log_timezone = 'PRC'
+autovacuum = on                 # Enable autovacuum subprocess?  'on'
+log_autovacuum_min_duration = 0 # -1 disables, 0 logs all actions and
+datestyle = 'iso, mdy'
+timezone = 'PRC'
+lc_messages = 'C'                       # locale for system error message
+lc_monetary = 'C'                       # locale for monetary formatting
+lc_numeric = 'C'                        # locale for number formatting
+lc_time = 'C'                           # locale for time formatting
+default_text_search_config = 'pg_catalog.english'
+```
+
+### 启动数据库，创建测试用户
+```
+postgres@localhost-> pg_ctl start
+postgres@localhost-> psql
+postgres=# create role zgs login encrypted password 'zgs';
+CREATE ROLE
+```
+### 创建表空间, 数据库
+```
+postgres=# create tablespace tbs1 location '/pgdata04/tbs1';
+CREATE TABLESPACE
+postgres=# create tablespace tbs2 location '/pgdata05/tbs2';
+CREATE TABLESPACE
+postgres=# create database zgs template template0 encoding 'UTF8' tablespace tbs1;
+CREATE DATABASE
+postgres=# grant all on database zgs to zgs;
+GRANT
+postgres=# grant all on tablespace tbs1 to zgs;
+GRANT
+postgres=# grant all on tablespace tbs2 to zgs;
+GRANT
+postgres=# \c zgs zgs
+You are now connected to database "zgs" as user "zgs".
+digoal=> create schema zgs;
+CREATE SCHEMA
 ```
 
 
