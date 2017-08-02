@@ -1,15 +1,15 @@
 已测试环境 : 
-OS : CentOS 6.x x64
-DB : PostgreSQL 9.3.x
-Server : HP DL360
-HOST1 : 192.168.111.37
-HOST2 : 192.168.111.42
-VIPM : 192.168.111.130
-VIPS : 192.168.111.131
-HOST1 FENCE DEVICE : fence_ilo
-HOST2 FENCE DEVICE : fence_ilo
-GateWay IP : 192.168.111.1
+OS : CentOS 7.x x64
+DB : PostgreSQL 9.3.5
+Server : VMWare Workstation 11
+HOST1 : 192.168.57.132
+HOST2 : 192.168.57.133
+VIPM : 192.168.57.232
+VIPS : 192.168.57.233
 
+GateWay IP : 192.168.1.1
+
+------------------------未使用fence设备
 配置, 测试fence设备
 FENCE DEVICE配置 (HOST1, HOST2) : 
 IP : 192.168.111.37    ilo : 192.168.112.56    USER : digoal    PWD : digoal_pwd
@@ -19,6 +19,7 @@ IP : 192.168.111.42    ilo : 192.168.112.51    USER : digoal    PWD : digoal_pwd
 OS配置(HOST1, HOST2) : 
 关闭acpi服务, 避免fence慢或者fence不成功的可能.
 chkconfig acpid off
+----------------------------
 
 增加yum源, 安装需要的包. (HOST1, HOST2)
 视OS版本环境配置, 可能与以下不一致
