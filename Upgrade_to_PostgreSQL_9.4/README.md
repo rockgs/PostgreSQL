@@ -14,7 +14,7 @@ pg_upgrade支持从8.3.x以及更新的版本的跨大版本升级, 使用LINK�
 使用zfs快照来保存老的数据文件和软件. 如果升级失败, 回滚非常简单, 回退到ZFS快照或者使用ZFS快照克隆都可以.
 
 ### 架构
-![架构](https://github.com/rockgs/PostgreSQL/blob/master/upgrade%20to%20PostgreSQL%209.4/pgupdate9.4.png)
+![架构](https://github.com/rockgs/PostgreSQL/blob/master/Upgrade_to_PostgreSQL_9.4/pgupdate9.4.png)
 
 升级步骤简介 : 
 假设主机已是基于ZFS
