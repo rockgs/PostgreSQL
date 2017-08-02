@@ -14,3 +14,39 @@ pg_upgrade支持从8.3.x以及更新的版本的跨大版本升级, 使用LINK�
 使用zfs快照来保存老的数据文件和软件. 如果升级失败, 回滚非常简单, 回退到ZFS快照或者使用ZFS快照克隆都可以.
 
 ![架构](https://github.com/rockgs/PostgreSQL/blob/master/upgrade%20to%20PostgreSQL%209.4/pgupdate9.4.png)
+
+升级步骤简介 : 
+假设主机已是基于ZFS
+  停库
+  创建快照
+  使用upgrade升级
+
+假设主机不是基于ZFS
+  创建ZFS主机
+  创建standby
+  主备角色切换
+  以下基于新的主
+  停主
+  创建快照
+  使用upgrade升级
+
+如何把老版本的standby升级成为9.4 standby?
+  pg start backup
+  rsync 数据文件
+  pg_stop_backup
+  创建recovery.conf 继续.
+
+使用ZFS和pg_upgrade升级9.4的详细步骤 : 
+以CentOS 7 x64为例,
+测试环境部署
+安装zfs
+http://download.fedoraproject.org/pub/epel 找到最新的epel7 rpm包, 加入YUM仓库.
+例如当下版本如下 :
+
+'''
+[root@localhost ~]# yum localinstall --nogpgcheck http://ftp.cuhk.edu.hk/pub/linux/fedora-epel/7/x86_64/e/epel-release-7-5.noarch.rpm
+[root@localhost ~]# yum localinstall --nogpgcheck http://archive.zfsonlinux.org/epel/zfs-release.el7.noarch.rpm
+[root@localhost ~]# uname -r
+3.10.0-123.el7.x86_64
+[root@localhost ~]# yum install kernel-devel-3.10.0-123.el7 zfs 
+'''
