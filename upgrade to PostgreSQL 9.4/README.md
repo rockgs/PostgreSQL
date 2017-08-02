@@ -43,10 +43,10 @@ pg_upgrade支持从8.3.x以及更新的版本的跨大版本升级, 使用LINK�
 http://download.fedoraproject.org/pub/epel 找到最新的epel7 rpm包, 加入YUM仓库.
 例如当下版本如下 :
 
-'''
+```
 [root@localhost ~]# yum localinstall --nogpgcheck http://ftp.cuhk.edu.hk/pub/linux/fedora-epel/7/x86_64/e/epel-release-7-5.noarch.rpm
 [root@localhost ~]# yum localinstall --nogpgcheck http://archive.zfsonlinux.org/epel/zfs-release.el7.noarch.rpm
 [root@localhost ~]# uname -r
 3.10.0-123.el7.x86_64
 [root@localhost ~]# yum install kernel-devel-3.10.0-123.el7 zfs 
-'''
+```
