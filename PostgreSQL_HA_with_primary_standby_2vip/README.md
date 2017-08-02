@@ -148,5 +148,4 @@ master_standby角色, 循环检查
 ![逻辑4](https://github.com/digoal/PostgreSQL_HA_with_primary_standby_2vip/blob/master/m_s_4.png)
 
 # Author : Digoal zhou
-# Email : digoal@126.com
-# Blog : http://blog.163.com/digoal@126/
+# Modi: Rock zhao
