@@ -329,13 +329,187 @@ INSERT 0 9999999
 ```
 
 ### 创建新版本数据目录
-如果我们要使用硬链接$PGDATA来加快升级速度的话, 那么新的集群$PGDATA要和老集群的$PGDATA在一个文件系统下.
-所以我们使用 /pgdata01/pg_root_9.4:
+如果我们要使用硬链接$PGDATA来加快升级速度的话, 那么新的集群$PGDATA要和老集群的$PGDATA在一个文件系统下,所以我们使用 /pgdata01/pg_root_9.4
+初始化XLOG目录和arch目录(如果使用了定制的pg_log, 则还需初始化pg_log目录, 本例使用的是$PGDATA/pg_log, 所以无需创建pg_log)
 ```
 [root@localhost lib]# mkdir /pgdata01/pg_root_9.4
 [root@localhost lib]# chown -R postgres:postgres /pgdata01/pg_root_9.4
 [root@localhost lib]# chmod 700 /pgdata01/pg_root_9.4
+[root@localhost lib]# mkdir /pgdata02/pg_xlog_9.4
+[root@localhost lib]# chown -R postgres:postgres /pgdata02/pg_xlog_9.4
+[root@localhost lib]# chmod 700 /pgdata02/pg_xlog_9.4
+[root@localhost lib]# mkdir /pgdata03/pg_arch_9.4
+[root@localhost lib]# chown -R postgres:postgres /pgdata03/pg_arch_9.4
+[root@localhost lib]# chmod 700 /pgdata03/pg_arch_9.4
 ```
+
+### 初始化9.4数据库
+```
+[root@localhost lib]# su - postgres
+Last login: Wed Aug  2 02:23:38 PDT 2017 on pts/2
+postgres@/home/postgres ->  /opt/pgsql9.4.0/bin/initdb -D /pgdata01/pg_root_9.4 -X /pgdata02/pg_xlog_9.4 -E UTF8 --locale=C -U postgres -W
+```
+
+### 配置9.4集群
+将pg_hba.conf改为和老实例的9.3一致,另外, 因为升级需要多次连接新老集群数据库实例, 所以修改为使用本地trust认证.
+```
+postgres@localhost-> vi /pgdata01/pg_root_9.4/pg_hba.conf
+包含以下即可
+# "local" is for Unix domain socket connections only
+local   all             all                                     trust
+# IPv4 local connections:
+host    all             all             127.0.0.1/32            trust
+```
+
+### 修改9.4实例数据库配置文件
+注意使用不同的监听端口.（PostgreSQL 9.4新增了很多功能和参数, 本例一并提供了）
+```
+postgres@localhost->vi /pgdata01/pg_root_9.4/postgresql.conf
+listen_addresses = '0.0.0.0'            # what IP address(es) to listen on;
+port = 1922                             # (change requires restart)
+max_connections = 100                   # (change requires restart)
+unix_socket_directories = '.'   # comma-separated list of directories
+unix_socket_permissions = 0700          # begin with 0 to use octal notation
+tcp_keepalives_idle = 60                # TCP_KEEPIDLE, in seconds;
+tcp_keepalives_interval = 10            # TCP_KEEPINTVL, in seconds;
+tcp_keepalives_count = 10               # TCP_KEEPCNT;
+shared_buffers = 512MB                  # min 128kB
+huge_pages = try                        # on, off, or try
+maintenance_work_mem = 512MB            # min 1MB
+autovacuum_work_mem = -1                # min 1MB, or -1 to use maintenance_work_mem
+dynamic_shared_memory_type = posix      # the default is the first option
+vacuum_cost_delay = 10                  # 0-100 milliseconds
+vacuum_cost_limit = 10000               # 1-10000 credits
+bgwriter_delay = 10ms                   # 10-10000ms between rounds
+wal_level = logical                     # minimal, archive, hot_standby, or logical
+synchronous_commit = off                # synchronization level;
+wal_buffers = 16384kB                   # min 32kB, -1 sets based on shared_buffers
+wal_writer_delay = 10ms         # 1-10000 milliseconds
+checkpoint_segments = 32                # in logfile segments, min 1, 16MB each
+archive_mode = on               # allows archiving to be done
+archive_command = 'DIR="/pgdata03/pg_arch_9.4/`date +%F`";test -d $DIR || mkdir -p $DIR; cp %p $DIR/%f'         # command to use to archive a logfile segment
+archive_timeout = 600           # force a logfile segment switch after this
+log_destination = 'csvlog'              # Valid values are combinations of
+logging_collector = on          # Enable capturing of stderr and csvlog
+log_directory = 'pg_log'                # directory where log files are written,
+log_filename = 'postgresql-%Y-%m-%d_%H%M%S.log' # log file name pattern,
+log_file_mode = 0600                    # creation mode for log files,
+log_truncate_on_rotation = on           # If on, an existing log file with the
+log_checkpoints = on
+log_connections = on
+log_disconnections = on
+log_error_verbosity = verbose           # terse, default, or verbose messages
+log_lock_waits = on                     # log lock waits >= deadlock_timeout
+log_statement = 'ddl'                   # none, ddl, mod, all
+log_timezone = 'PRC'
+autovacuum = on                 # Enable autovacuum subprocess?  'on'
+log_autovacuum_min_duration = 0 # -1 disables, 0 logs all actions and
+datestyle = 'iso, mdy'
+timezone = 'PRC'
+lc_messages = 'C'                       # locale for system error message
+lc_monetary = 'C'                       # locale for monetary formatting
+lc_numeric = 'C'                        # locale for number formatting
+lc_time = 'C'                           # locale for time formatting
+default_text_search_config = 'pg_catalog.english'
+```
+
+### 停库
+```
+postgres@localhost-> /opt/pgsql9.3.5/bin/pg_ctl stop -m fast -D /pgdata01/pg_root
+postgres@localhost-> /opt/pgsql9.4.0/bin/pg_ctl stop -m fast -D /pgdata01/pg_root_9.4
+```
+
+### 创建9.3数据库的文件系统快照
+```
+[root@localhost ~]# zfs snapshot zp1/pg_root@pg9.3.5
+[root@localhost ~]# zfs snapshot zp1/pg_xlog@pg9.3.5
+[root@localhost ~]# zfs snapshot zp1/pg_arch@pg9.3.5
+[root@localhost ~]# zfs snapshot zp1/tbs1@pg9.3.5
+[root@localhost ~]# zfs snapshot zp1/tbs2@pg9.3.5
+[root@localhost ~]# zfs list -t snapshot
+```
+
+### 使用9.4的pg_upgrade检测兼容性
+```
+postgres@/home/postgres -> mkdir upgrade_log
+postgres@/home/postgres -> cd upgrade_log/
+postgres@/home/postgres -> /opt/pgsql9.4.0/bin/pg_upgrade -b /opt/pgsql9.3.5/bin -B /opt/pgsql9.4.0/bin -d /pgdata01/pg_root -D /pgdata01/pg_root_9.4 -p 1921 -P 1922 -U postgres -j 8 -k -c
+Performing Consistency Checks
+-----------------------------
+Checking cluster versions                                   ok
+Checking database user is a superuser                       ok
+Checking for prepared transactions                          ok
+Checking for reg* system OID user data types                ok
+Checking for contrib/isn with bigint-passing mismatch       ok
+Checking for invalid "line" user columns                    ok
+Checking for presence of required libraries                 ok
+Checking database user is a superuser                       ok
+Checking for prepared transactions                          ok
+
+*Clusters are compatible*
+```
+
+### 验证兼容性正常, 可以正式升级了
+```
+postgres@localhost-> /opt/pgsql9.4.0/bin/pg_upgrade -b /opt/pgsql9.3.5/bin -B /opt/pgsql9.4.0/bin -d /pgdata01/pg_root -D /pgdata01/pg_root_9.4 -p 1921 -P 1922 -U postgres -j 8 -k -r -v
+
+Creating script to analyze new cluster                      ok
+Creating script to delete old cluster                       ok
+
+Upgrade Complete
+----------------
+Optimizer statistics are not transferred by pg_upgrade so,
+once you start the new server, consider running:
+    analyze_new_cluster.sh
+
+Running this script will delete the old cluster's data files:
+    delete_old_cluster.sh
+```
+
+### 给了2个脚本, 用于收集统计信息和删除老集群
+```
+postgres@/home/postgres -> ll
+total 356K
+-rwx------ 1 postgres postgres  785 Aug  2 02:46 analyze_new_cluster.sh
+-rwx------ 1 postgres postgres  114 Aug  2 02:46 delete_old_cluster.sh
+-rw------- 1 postgres postgres  49K Aug  2 02:46 pg_upgrade_internal.log
+-rw------- 1 postgres postgres 5.2K Aug  2 02:46 pg_upgrade_server.log
+-rw------- 1 postgres postgres 213K Aug  2 02:46 pg_upgrade_utility.log
+```
+
+### 接下来要做的是启动新的数据库集群
+```
+postgres@localhost-> /opt/pgsql9.4.0/bin/pg_ctl start -D /pgdata01/pg_root_9.4
+```
+
+### 查看数据
+```
+postgres@localhost-> /opt/pgsql9.4.0/bin/psql -h 127.0.0.1 -p 1922 -U zgs zgs
+postgres@/home/postgres -> /opt/pgsql9.4.0/bin/psql -h 127.0.0.1 -p 1922 -U zgs zgs
+psql (9.4.0)
+Type "help" for help.
+
+zgs=> \dt
+         List of relations
+ Schema |   Name   | Type  | Owner 
+--------+----------+-------+-------
+ zgs    | userinfo | table | zgs
+(1 row)
+
+zgs=> \dx
+                 List of installed extensions
+  Name   | Version |   Schema   |         Description          
+---------+---------+------------+------------------------------
+ plpgsql | 1.0     | pg_catalog | PL/pgSQL procedural language
+(1 row)
+
+zgs=> select count(*) from userinfo ;
+  count   
+----------
+ 10000000
+(1 row)
+```
+
 
 
 
