@@ -42,7 +42,7 @@ pg_upgrade支持从8.3.x以及更新的版本的跨大版本升级, 使用LINK�
 安装zfs
 加入YUM仓库
 
-###安装zfs文件系统:
+### 安装zfs文件系统:
 
 ```
 [root@localhost ~]# yum localinstall --nogpgcheck http://download.zfsonlinux.org/epel/zfs-release.el7.noarch.rpm
@@ -53,15 +53,13 @@ pg_upgrade支持从8.3.x以及更新的版本的跨大版本升级, 使用LINK�
 [root@localhost /]# modprobe zfs
 ```
 
-###创建数据目录
-
+### 创建数据目录
 ```
 [root@localhost /]# mkdir data01
 [root@localhost /]# cd data01
 ```
 
-###安装好ZFS后, 创建ZPOOL, 我们使用5个文件来模拟5块磁盘。
-
+### 安装好ZFS后, 创建ZPOOL, 我们使用5个文件来模拟5块磁盘。
 ```
 [root@localhost disks]# dd if=/dev/zero of=./disk1 bs=8192k count=1024 oflag=direct
 [root@localhost disks]# dd if=/dev/zero of=./disk2 bs=8192k count=1024 oflag=direct
@@ -69,7 +67,8 @@ pg_upgrade支持从8.3.x以及更新的版本的跨大版本升级, 使用LINK�
 [root@localhost disks]# dd if=/dev/zero of=./disk4 bs=8192k count=1024 oflag=direct
 [root@localhost disks]# dd if=/dev/zero of=./disk5 bs=8192k count=1024 oflag=direct
 ```
-###创建zpool
+
+### 创建zpool
 ```
 [root@localhost disks]# zpool create -o ashift=12 zp1 raidz /data01/disk1 /data01/disk2 /data01/disk3 /data01/disk4 /data01/disk5
 [root@localhost disks]# zpool status
@@ -88,13 +87,14 @@ config:
             /data01/disks/disk5  ONLINE       0     0     0
 ```
 
-###设置zfs默认参数 
+### 设置zfs默认参数 
 ```
 [root@localhost disks]# zfs set atime=off zp1
 [root@localhost disks]# zfs set compression=lz4 zp1
 [root@localhost disks]# zfs set canmount=off zp1
 ```
-###规划一下数据库的目录结构.
+
+### 规划一下数据库的目录结构.
 假设分开5个文件系统来存放.
 ```
 $PGDATA
@@ -103,7 +103,8 @@ pg_arch
 tbs1
 tbs2
 ```
-###创建对应的zfs文件系统
+
+### 创建对应的zfs文件系统
 ```
 [root@localhost disks]# zfs create -o mountpoint=/pgdata01 zp1/pg_root
 [root@localhost disks]# zfs create -o mountpoint=/pgdata02 zp1/pg_xlog
