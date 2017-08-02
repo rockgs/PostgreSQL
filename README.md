@@ -1,5 +1,6 @@
-# PostgreSQL Ïà¹Ø¼¼ÊõÑ§Ï°
+# PostgreSQL ç›¸å…³æŠ€æœ¯å­¦ä¹ 
 
-### Î´¹éÀàÎÄµµÈçÏÂ  
+### æœªå½’ç±»æ–‡æ¡£å¦‚ä¸‹  
 ----  
-##### PostgreSQL_HA_with_primary_standby_2vip/readme.md   [¡¶PostgreSQL_¸ß¿ÉÓÃË«»úÈÈ±¸2ĞéÄâIP¡·](readme.md) 
+##### PostgreSQL_HA_with_primary_standby_2vip/README.md Â  [ã€ŠPostgreSQL_é«˜å¯ç”¨åŒæœºçƒ­å¤‡2è™šæ‹ŸIPã€‹](README.md) 
+
