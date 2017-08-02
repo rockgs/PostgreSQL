@@ -77,14 +77,16 @@ pg_upgrade支持从8.3.x以及更新的版本的跨大版本升级, 使用LINK�
   scan: none requested
 config:
 
-        NAME                     STATE     READ WRITE CKSUM
-        zp1                      ONLINE       0     0     0
-          raidz1-0               ONLINE       0     0     0
-            /data01/disks/disk1  ONLINE       0     0     0
-            /data01/disks/disk2  ONLINE       0     0     0
-            /data01/disks/disk3  ONLINE       0     0     0
-            /data01/disks/disk4  ONLINE       0     0     0
-            /data01/disks/disk5  ONLINE       0     0     0
+        NAME               STATE     READ WRITE CKSUM
+        zp1                ONLINE       0     0     0
+          raidz1-0         ONLINE       0     0     0
+            /data01/disk1  ONLINE       0     0     0
+            /data01/disk2  ONLINE       0     0     0
+            /data01/disk3  ONLINE       0     0     0
+            /data01/disk4  ONLINE       0     0     0
+            /data01/disk5  ONLINE       0     0     0
+
+errors: No known data errors
 ```
 
 ### 设置zfs默认参数 
@@ -106,17 +108,42 @@ tbs2
 
 ### 创建对应的zfs文件系统
 ```
-[root@localhost disks]# zfs create -o mountpoint=/pgdata01 zp1/pg_root
-[root@localhost disks]# zfs create -o mountpoint=/pgdata02 zp1/pg_xlog
-[root@localhost disks]# zfs create -o mountpoint=/pgdata03 zp1/pg_arch
-[root@localhost disks]# zfs create -o mountpoint=/pgdata04 zp1/tbs1
-[root@localhost disks]# zfs create -o mountpoint=/pgdata05 zp1/tbs2
-[root@localhost disks]# df -h
-zp1/pg_root                 32G  256K   32G   1% /pgdata01
-zp1/pg_xlog                 32G  256K   32G   1% /pgdata02
-zp1/pg_arch                 32G  256K   32G   1% /pgdata03
-zp1/tbs1                    32G  256K   32G   1% /pgdata04
-zp1/tbs2                    32G  256K   32G   1% /pgdata05
+[root@localhost /]# zfs create -o mountpoint=/pgdata01 zp1/pg_root
+[root@localhost /]# zfs create -o mountpoint=/pgdata02 zp1/pg_xlog
+[root@localhost /]# zfs create -o mountpoint=/pgdata03 zp1/pg_arch
+[root@localhost /]# zfs create -o mountpoint=/pgdata04 zp1/tbs1
+[root@localhost /]# zfs create -o mountpoint=/pgdata05 zp1/tbs2
+[root@localhost /]# df -h
+Filesystem      Size  Used Avail Use% Mounted on
+zp1/pg_root     7.7G  128K  7.7G   1% /pgdata01
+zp1/pg_xlog     7.7G  128K  7.7G   1% /pgdata02
+zp1/pg_arch     7.7G  128K  7.7G   1% /pgdata03
+zp1/tbs1        7.7G  128K  7.7G   1% /pgdata04
+zp1/tbs2        7.7G  128K  7.7G   1% /pgdata05
 ```
+
+### 创建数据目录
+```
+[root@localhost /]# mkdir /pgdata01/pg_root
+[root@localhost /]# mkdir /pgdata02/pg_xlog
+[root@localhost /]# mkdir /pgdata03/pg_arch
+[root@localhost /]# mkdir /pgdata04/tbs1
+[root@localhost /]# mkdir /pgdata05/tbs2
+[root@localhost /]# chown -R postgres:postgres /pgdata0*
+```
+
+### 安装PostgreSQL 9.3.5，初始化
+```
+
+
+
+
+
+
+
+
+
+
+
 
 
