@@ -2,6 +2,7 @@
 # fast & safe upgrade to PostgreSQL 9.4 use pg_upgrade & zfs
 
 ### [更新]
+
 已使用pg_upgrade顺利将一个8TB的生产数据库(包含表, 索引, 类型, 函数, 外部对象等对象大概10万个)从9.3升级到9.4, 升级比较快(约2分钟), 因为数据库较大后期analyze的时间比较长, 不过你可以将常用的表优先analyze一下, 就可以放心大胆的提供服务了.
 
 
