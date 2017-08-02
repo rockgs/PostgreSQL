@@ -23,30 +23,6 @@ chkconfig acpid off
 
 增加yum源, 安装需要的包. (HOST1, HOST2)
 视OS版本环境配置, 可能与以下不一致
-/etc/yum.repos.d/rhel-sky.repo
-[Cluster]
-name=Cluster Directory
-baseurl=http://192.168.164.38/rhel-server-5.4-i386/Cluster
-enabled=1
-gpgcheck=0
- 
-[ClusterStorage]
-name=ClusterStorage Directory
-baseurl=http://192.168.164.38/rhel-server-5.4-i386/ClusterStorage
-enabled=1
-gpgcheck=0
- 
-[Server]
-name=Server Directory
-baseurl=http://192.168.164.38/rhel-server-5.4-i386/Server
-enabled=1
-gpgcheck=0
- 
-[VT]
-name=VT Directory
-baseurl=http://192.168.164.38/rhel-server-5.4-i386/VT
-enabled=1
-gpgcheck=0
 
 安装需要的包.(HOST1, HOST2)
 yum -y install rsync coreutils glib2 lrzsz sysstat e4fsprogs xfsprogs ntp readline-devel zlib zlib-devel openssl openssl-devel pam-devel libxml2-devel libxslt-devel python-devel tcl-devel gcc make smartmontools flex bison perl perl-devel perl-ExtUtils* OpenIPMI-tools openldap openldap-devel cman logrotate
@@ -95,13 +71,6 @@ vi /etc/security/limits.conf (HOST1, HOST2)
 * hard    core    unlimited
 * soft    memlock 500000000
 * hard    memlock 500000000
-
-如果是centos 6.x的话还需要修改 /etc/security/limits.d/90-nproc.conf
-vi /etc/security/limits.d/90-nproc.conf 
-#*          soft    nproc     1024
-#root       soft    nproc     unlimited
-* soft    nproc   131072
-* hard    nproc   131072
 
 同步时钟 (HOST1, HOST2)
 crontab -e
@@ -579,5 +548,4 @@ service xinetd restart
 
 
 # Author : Digoal zhou
-# Email : digoal@126.com
-# Blog : http://blog.163.com/digoal@126/
+# Modi: Rock zhao
