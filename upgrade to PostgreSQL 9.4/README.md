@@ -13,4 +13,4 @@ pg_upgrade支持从8.3.x以及更新的版本的跨大版本升级, 使用LINK�
 本文将演示一下使用pg_upgrade将数据库从9.3.5升级到最新的9.4.
 使用zfs快照来保存老的数据文件和软件. 如果升级失败, 回滚非常简单, 回退到ZFS快照或者使用ZFS快照克隆都可以.
 
-![架构](https://github.com/rockgs/upgrade to PostgreSQL 9.4/pgupdate9.4.jpg)
+![架构](https://github.com/rockgs/PostgreSQL/blob/master/upgrade%20to%20PostgreSQL%209.4/pgupdate9.4.png)
