@@ -260,12 +260,82 @@ postgres=# grant all on tablespace tbs2 to zgs;
 GRANT
 postgres=# \c zgs zgs
 You are now connected to database "zgs" as user "zgs".
-digoal=> create schema zgs;
+zgs=> create schema zgs;
 CREATE SCHEMA
 ```
 
+### 创建测试数据表, 函数, 创建在tbs1和tbs2.
+```
+zgs=> create table userinfo (id int primary key, info text, crt_time timestamp);
+zgs=> \d userinfo
+                Table "zgs.userinfo"
+  Column  |            Type             | Modifiers 
+----------+-----------------------------+-----------
+ id       | integer                     | not null
+ info     | text                        | 
+ crt_time | timestamp without time zone | 
+Indexes:
+    "userinfo_pkey" PRIMARY KEY, btree (id)
+    
+zgs=> alter index userinfo_pkey set tablespace tbs2;
+ALTER INDEX
 
+zgs=> create or replace function f_zgs(i_id int) returns void as $$
+declare
+begin
+  update userinfo set info=$_$Hello,I'm zgs.$_$||md5(random()::text), crt_time=now() where id=i_id;
+  if not found then
+    insert into userinfo(id,info,crt_time) values(i_id, $_$Hello,I'm zgs.$_$||md5(random()::text), now());
+  end if; 
+  return;
+exception when others then
+  return;
+end;
+$$ language plpgsql strict volatile;
+CREATE FUNCTION
+zgs=> select f_zgs(1);
+ f_zgs 
+-------
+ 
+(1 row)
 
+zgs=> select * from userinfo;
+ id |                      info                      |          crt_time          
+----+------------------------------------------------+----------------------------
+  1 | Hello,I'm zgs.0ae9cbf18bfd21450dcd7cc3a2df038d | 2017-08-02 17:12:42.216111
+(1 row)
+```
+
+### 生成测试数据
+```
+zgs=>  insert into userinfo select generate_series(2,10000000),'test',clock_timestamp();
+INSERT 0 9999999
+```
+
+## 安装PostgreSQL 9.4:
+注意编译参数一致性, 以及内部和外部扩展模块(内部模块gmake world gmake install-world会全部安装).
+```
+[root@localhost ~]# tar -jxvf postgresql-9.4.0.tar.bz2
+[root@localhost postgresql-9.4.0]# cd postgresql-9.4.0
+[root@localhost postgresql-9.4.0]#./configure --prefix=/opt/pgsql9.4.0 --with-pgport=1921 --with-perl --with-tcl --with-python --with-openssl --with-pam --without-ldap --with-libxml --with-libxslt --enable-thread-safety --with-blocksize=32 --with-wal-blocksize=32 && gmake world && gmake install-world
+```
+
+### 检查安装包含upgrade和upgrade库
+```
+[root@localhost lib]# ll|grep upgr
+-rwxr-xr-x 1 root root   14352 Aug  2 02:23 pg_upgrade_support.so
+[root@localhost lib]# ll /opt/pgsql9.4.0/bin/pg_upgrade 
+-rwxr-xr-x 1 root root 116416 Aug  2 02:23 /opt/pgsql9.4.0/bin/pg_upgrade
+```
+
+### 创建新版本数据目录
+如果我们要使用硬链接$PGDATA来加快升级速度的话, 那么新的集群$PGDATA要和老集群的$PGDATA在一个文件系统下.
+所以我们使用 /pgdata01/pg_root_9.4:
+```
+[root@localhost lib]# mkdir /pgdata01/pg_root_9.4
+[root@localhost lib]# chown -R postgres:postgres /pgdata01/pg_root_9.4
+[root@localhost lib]# chmod 700 /pgdata01/pg_root_9.4
+```
 
 
 
