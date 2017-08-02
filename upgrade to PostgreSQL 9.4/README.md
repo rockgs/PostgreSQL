@@ -37,16 +37,81 @@ pg_upgrade支持从8.3.x以及更新的版本的跨大版本升级, 使用LINK�
   创建recovery.conf 继续.
 
 使用ZFS和pg_upgrade升级9.4的详细步骤 : 
-以CentOS 7 x64为例,
+以CentOS 7 3.10.0-123.el7.x86_64内核版本为例
 测试环境部署
 安装zfs
-http://download.fedoraproject.org/pub/epel 找到最新的epel7 rpm包, 加入YUM仓库.
-例如当下版本如下 :
+加入YUM仓库
 
+###安装zfs文件系统:
 ```
-[root@localhost ~]# yum localinstall --nogpgcheck http://ftp.cuhk.edu.hk/pub/linux/fedora-epel/7/x86_64/e/epel-release-7-5.noarch.rpm
-[root@localhost ~]# yum localinstall --nogpgcheck http://archive.zfsonlinux.org/epel/zfs-release.el7.noarch.rpm
+[root@localhost ~]# yum localinstall --nogpgcheck http://download.zfsonlinux.org/epel/zfs-release.el7.noarch.rpm
+[root@localhost ~]#  yum install -y epel-release.noarch 
 [root@localhost ~]# uname -r
 3.10.0-123.el7.x86_64
-[root@localhost ~]# yum install kernel-devel-3.10.0-123.el7 zfs 
+[root@localhost ~]# yum install  zfs 
+[root@localhost /]# modprobe zfs
 ```
+###创建数据目录
+```
+[root@localhost /]# mkdir data01
+[root@localhost /]# cd data01
+```
+
+###安装好ZFS后, 创建ZPOOL, 我们使用5个文件来模拟5块磁盘。
+```
+[root@localhost disks]# dd if=/dev/zero of=./disk1 bs=8192k count=1024 oflag=direct
+[root@localhost disks]# dd if=/dev/zero of=./disk2 bs=8192k count=1024 oflag=direct
+[root@localhost disks]# dd if=/dev/zero of=./disk3 bs=8192k count=1024 oflag=direct
+[root@localhost disks]# dd if=/dev/zero of=./disk4 bs=8192k count=1024 oflag=direct
+[root@localhost disks]# dd if=/dev/zero of=./disk5 bs=8192k count=1024 oflag=direct
+```
+###创建zpool
+```
+[root@localhost disks]# zpool create -o ashift=12 zp1 raidz /data01/disk1 /data01/disk2 /data01/disk3 /data01/disk4 /data01/disk5
+[root@localhost disks]# zpool status
+  pool: zp1
+ state: ONLINE
+  scan: none requested
+config:
+
+        NAME                     STATE     READ WRITE CKSUM
+        zp1                      ONLINE       0     0     0
+          raidz1-0               ONLINE       0     0     0
+            /data01/disks/disk1  ONLINE       0     0     0
+            /data01/disks/disk2  ONLINE       0     0     0
+            /data01/disks/disk3  ONLINE       0     0     0
+            /data01/disks/disk4  ONLINE       0     0     0
+            /data01/disks/disk5  ONLINE       0     0     0
+```
+
+###设置zfs默认参数 
+```
+[root@localhost disks]# zfs set atime=off zp1
+[root@localhost disks]# zfs set compression=lz4 zp1
+[root@localhost disks]# zfs set canmount=off zp1
+```
+###规划一下数据库的目录结构.
+假设分开5个文件系统来存放.
+```
+$PGDATA
+pg_xlog
+pg_arch
+tbs1
+tbs2
+```
+###创建对应的zfs文件系统
+```
+[root@localhost disks]# zfs create -o mountpoint=/pgdata01 zp1/pg_root
+[root@localhost disks]# zfs create -o mountpoint=/pgdata02 zp1/pg_xlog
+[root@localhost disks]# zfs create -o mountpoint=/pgdata03 zp1/pg_arch
+[root@localhost disks]# zfs create -o mountpoint=/pgdata04 zp1/tbs1
+[root@localhost disks]# zfs create -o mountpoint=/pgdata05 zp1/tbs2
+[root@localhost disks]# df -h
+zp1/pg_root                 32G  256K   32G   1% /pgdata01
+zp1/pg_xlog                 32G  256K   32G   1% /pgdata02
+zp1/pg_arch                 32G  256K   32G   1% /pgdata03
+zp1/tbs1                    32G  256K   32G   1% /pgdata04
+zp1/tbs2                    32G  256K   32G   1% /pgdata05
+```
+
+
