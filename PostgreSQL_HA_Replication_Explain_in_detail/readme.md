@@ -176,3 +176,34 @@ su postgres -c "/usr/local/pgsql9.6.1/bin/pg_ctl start -D /home/postgres/data63"
 
 ## 四、异步复制配置
 ### 1、源码编译安装Postgresql
+```
+[root@slavedb home]# adduser postgres -d /home/postgres
+[root@slavedb ~]# tar -zxvf postgresql-9.6.3.tar.gz 
+[root@slavedb source]# cd postgresql-9.6.3
+[root@slavedb postgresql-9.6.3]# ./configure --prefix=/opt/pgsql9.6.3 --with-pgport=1963 --with-perl --with-tcl --with-python --with-openssl --with-pam --without-ldap --with-libxml --with-libxslt --enable-thread-safety --with-blocksize=32 --with-wal-blocksize=32
+[root@slavedb postgresql-9.6.3]# gmake world
+[root@slavedb postgresql-9.6.3]# gmake install-world
+```
+### 2、使用pg_basebackup从主节点生成一个备节点
+```
+[postgres@slavedb ]$ pg_basebackup -h masterdb -U repuser -p 1963 -D /home/postgres/data63
+Password: 
+NOTICE:  pg_stop_backup complete, all required WAL segments have been archived
+```
+### 3、配置运行参数
+配置recovery.conf
+```
+[postgres@slavedb data63]$ cp /opt/pgsql9.6.3/share/recovery.conf.sample  ./recovery.conf
+[postgres@slavedb data63]$ vi recovery.conf 
+standby_mode = 'on'
+primary_conninfo = 'host=192.168.245.141 port=1963 user=repuser password=repuser'
+recovery_target_timeline = 'latest'
+
+#将recovery.conf设置成其它用户不能读取
+[root@slavedb data63]# chmod 0600 recovery.conf
+```
+### 4、启动服务并且验证主务复制是否成功
+启动备节点PostgreSQL服务
+```
+[postgres@slavedb archive]$ /usr/local/pgsql9.6.1/bin/pg_ctl start -D /home/postgres/data9.6.1/
+```
