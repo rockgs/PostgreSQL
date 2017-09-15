@@ -59,12 +59,12 @@
 ## 三、主节点部署及配置
 ### 1、源码编译安装Postgresql
 ```
-[root@masterdb home]# adduser postgres -d /home/postgres
-[root@localhost ~]# tar -zxvf postgresql-9.6.3.tar.gz 
-[root@masterdb source]# cd postgresql-9.6.3
+[root@masterdb ~]## adduser postgres -d /home/postgres
+[root@masterdb ~]# tar -zxvf postgresql-9.6.3.tar.gz 
+[root@masterdb ~]# cd postgresql-9.6.3
 [root@masterdb postgresql-9.6.3]# ./configure --prefix=/opt/pgsql9.6.3 --with-pgport=1963 --with-perl --with-tcl --with-python --with-openssl --with-pam --without-ldap --with-libxml --with-libxslt --enable-thread-safety --with-blocksize=32 --with-wal-blocksize=32
 [root@masterdb postgresql-9.6.3]# gmake world
-[root@localhost postgresql-9.6.3]# gmake install-world
+[root@masterdb postgresql-9.6.3]# gmake install-world
 ```
 ### 2、 postgres用户.bash_profile基本设置
 ```
@@ -154,7 +154,7 @@ postgres=#\password repuser
 Enter new password: 
 Enter it again:
 ```
-### 7、添加PostgreSQL服务port至iptables规则中
+### 7、添加PostgreSQL服务port至iptables规则中（如果启用了iptables）
 在/etc/sysconfig/iptables规则表中添加上下面这条规则即可让1963 port即提供对外访问
 ```
 [root@masterdb postgresql-9.6.3]# vim /etc/sysconfig/iptables
@@ -179,15 +179,15 @@ Enter it again:
 在 /etc/rc.d/rc.local  文件中添加下面启动脚本
 ```
 [root@masterdb postgresql-9.6.3]# vim /etc/rc.d/rc.local
-su postgres -c "/usr/local/pgsql9.6.1/bin/pg_ctl start -D /home/postgres/data63"
+su postgres -c "/opt/pgsql9.6.3/bin/pg_ctl start -D /home/postgres/data63"
 ```
 
 ## 四、异步复制配置
 ### 1、源码编译安装Postgresql
 ```
-[root@slavedb home]# adduser postgres -d /home/postgres
+[root@slavedb ~]# adduser postgres -d /home/postgres
 [root@slavedb ~]# tar -zxvf postgresql-9.6.3.tar.gz 
-[root@slavedb source]# cd postgresql-9.6.3
+[root@slavedb ~]# cd postgresql-9.6.3
 [root@slavedb postgresql-9.6.3]# ./configure --prefix=/opt/pgsql9.6.3 --with-pgport=1963 --with-perl --with-tcl --with-python --with-openssl --with-pam --without-ldap --with-libxml --with-libxslt --enable-thread-safety --with-blocksize=32 --with-wal-blocksize=32
 [root@slavedb postgresql-9.6.3]# gmake world
 [root@slavedb postgresql-9.6.3]# gmake install-world
@@ -304,3 +304,174 @@ postgres=# select * from t;
 su postgres -c "/opt/pgsql9.6.3/bin/pg_ctl start -D /home/postgres/data63"
 ```
 
+## 五、同步复制配置
+### 1、修改主节点postgresql.conf配置
+```
+[postgres@localhost data63]$ vi postgresql.conf 
+synchronous_standby_names = 'synccluster1,synccluster2'
+[postgres@localhost data63]$ pg_ctl reload
+server signaled
+```
+### 2、修改备节点recovery.conf配置
+```
+[postgres@slavedb data63]$ vi recovery.conf 
+standby_mode = 'on'
+primary_conninfo = 'host=192.168.245.141 port=1963 user=repuser password=pgsql application_name=synccluster1'
+recovery_target_timeline = 'latest'
+[postgres@slavedb data63]$ pg_ctl restart -m f
+```
+### 3、连接上主节点查看主备复制模式
+```
+[postgres@slavedb data63]$ psql -h masterdb -U postgres -d postgres
+Password for user postgres: 
+psql (9.6.3)
+Type "help" for help.
+
+postgres=# \x
+Expanded display is on.
+postgres=# select * from pg_stat_replication;
+-[ RECORD 1 ]----+------------------------------
+pid              | 80068
+usesysid         | 16384
+usename          | repuser
+application_name | synccluster1
+client_addr      | 192.168.245.142
+client_hostname  | 
+client_port      | 46523
+backend_start    | 2017-09-14 23:27:22.987723-07
+backend_xmin     | 
+state            | streaming
+sent_location    | 0/3054448
+write_location   | 0/3054448
+flush_location   | 0/3054448
+replay_location  | 0/3054448
+sync_priority    | 1
+sync_state       | sync
+
+postgres=# 
+```
+### 4、同步复制时对主节点的应用限制
+如果主节点synchronous_commit参数值设置成on、remote_write中的任何一个，则需要有备机采用同步模式连接上来，否则事务将会一直停留在那里等待备机已经提交事务的信号。会造成业务不可用，如下所示
+
+把备机服务停止并连接上主节点测试
+```
+[postgres@slavedb data63]$ pg_ctl stop -m f
+waiting for server to shut down.... done
+server stopped
+[postgres@slavedb data63]$ psql -h masterdb -U postgres -d postgres
+Password for user postgres: 
+psql (9.6.3)
+Type "help" for help.
+
+postgres=# insert into t values(10);
+```
+以上命令执行后将出现无限等待的情况，以下三个解决方法均可：
+* 把备机服务开起来
+* 把主节点的synchronous_standby_names 参数屏掉，即加上‘#’
+* 把synchronous_commit值修改为local
+
+## 六、级联复制配置
+### 1、源码编译安装Postgresql
+```
+[root@casecade ~]# adduser postgres -d /home/postgres
+[root@casecade ~]# tar -zxvf postgresql-9.6.3.tar.gz 
+[root@casecade ~]# cd postgresql-9.6.3
+[root@casecade postgresql-9.6.3]# ./configure --prefix=/opt/pgsql9.6.3 --with-pgport=1963 --with-perl --with-tcl --with-python --with-openssl --with-pam --without-ldap --with-libxml --with-libxslt --enable-thread-safety --with-blocksize=32 --with-wal-blocksize=32
+[root@casecade postgresql-9.6.3]# gmake world
+[root@casecade postgresql-9.6.3]# gmake install-world
+```
+### 2、使用pg_basebackup从备节点生成一个级联节点
+```
+[postgres@casecade postgresql-9.6.3]$ pg_basebackup -h slavedb -U repuser -p 1963 -D /home/postgres/data63
+Password: 
+NOTICE:  pg_stop_backup complete, all required WAL segments have been archived
+```
+### 3、配置运行参数
+配置recovery.conf
+```
+[postgres@casecade data63]$ vi recovery.conf 
+standby_mode = 'on'
+primary_conninfo = 'host=192.168.245.142 port=1963 user=repuser password=repuser'
+recovery_target_timeline = 'latest'
+
+#将recovery.conf设置成其它用户不能读取
+[root@slavedb data63]# chmod 0600 recovery.conf
+```
+启动服务、连接级联节点验证、连接备节点验证
+```
+[postgres@casecade data9.6.3]$ pg_ctl start
+server starting
+Password for user postgres: 
+psql (9.6.3)
+Type "help" for help.
+postgres=# select pg_is_in_recovery();
+ pg_is_in_recovery 
+-------------------
+ t
+(1 row)
+postgres=# \q
+
+[postgres@casecade ~]$ psql -h slavedb -U postgres -p 1963        
+Password for user postgres: 
+psql (9.6.3)
+Type "help" for help.
+
+postgres=# select pg_is_in_recovery();
+ pg_is_in_recovery 
+-------------------
+ t
+(1 row)
+postgres=# \x
+Expanded display is on.
+postgres=# select * from pg_stat_replication;
+-[ RECORD 1 ]----+------------------------------
+pid              | 23427
+usesysid         | 16384
+usename          | repuser
+application_name | walreceiver
+client_addr      | 192.168.245.143
+client_hostname  | 
+client_port      | 56817
+backend_start    | 2017-09-15 00:14:34.261838-07
+backend_xmin     | 
+state            | streaming
+sent_location    | 0/3054E00
+write_location   | 0/3054E00
+flush_location   | 0/3054E00
+replay_location  | 0/3054E00
+sync_priority    | 0
+sync_state       | async
+
+postgres=# 
+```
+目前级联复制只支持异步复制
+### 5、添加PostgreSQL服务port至iptables规则中（如果启用了iptables）
+
+在/etc/sysconfig/iptables规则表中添加上下面这条规则即可让1963 port即提供对外访问
+```
+[root@slavedb ]# vim /etc/sysconfig/iptables
+-A INPUT -m state --state NEW -m tcp -p tcp --dport 1963 -j ACCEPT
+```
+重启iptables服务
+```
+[root@slavedb ]# service iptables restart
+```
+配置某个网段可以访问
+```
+[root@slavedb ~]# vim /etc/sysconfig/iptables
+-A INPUT -s 192.168.245.0/24 -j ACCEPT
+[root@slavedb ~]# service iptables restart
+```
+配置iptables开机时不自动启动
+```
+[root@slavedb ]# chkconfig iptables off
+```
+### 6、配置PostgreSQL服务开机自动启动
+在 /etc/rc.d/rc.local  文件中添加下面启动脚本
+```
+[root@slavedb ]# vim /etc/rc.d/rc.local
+su postgres -c "/opt/pgsql9.6.3/bin/pg_ctl start -D /home/postgres/data63"
+```
+
+## 七、主备切换
+### 1、关闭主节点服务
