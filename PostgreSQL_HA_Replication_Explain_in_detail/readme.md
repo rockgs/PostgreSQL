@@ -276,36 +276,6 @@ postgres=# select * from t;
   1
 (1 row)
 ```
-###5、添加PostgreSQL服务port至iptables规则中
-
-在/etc/sysconfig/iptables规则表中添加上下面这条规则即可让9610 port即提供对外访问
-```
-[root@slavedb postgresql-9.6.1]# vim /etc/sysconfig/iptables
--A INPUT -m state --state NEW -m tcp -p tcp --dport 9610 -j ACCEPT
-```
-
-重启iptables服务
-```
-[root@slavedb postgresql-9.6.1]# service iptables restart
-```
-
-配置某个网段可以访问
-```
-[root@slavedb ~]# vim /etc/sysconfig/iptables
--A INPUT -s 192.168.0.0/24 -j ACCEPT
-[root@slavedb ~]# service iptables restart
-```
-
-配置iptables开机时不自动启动
-```
-[root@slavedb log]# chkconfig iptables off
-```
-### 6、配置PostgreSQL服务开机自动启动
-在 /etc/rc.d/rc.local  文件中添加下面启动脚本
-```
-[root@slavedb postgresql-9.6.1]# vim /etc/rc.d/rc.local
-su postgres -c "/usr/local/pgsql9.6.1/bin/pg_ctl start -D /home/postgres/data9.6.1"
-```
 ### 5、添加PostgreSQL服务port至iptables规则中（如果启用了iptables）
 
 在/etc/sysconfig/iptables规则表中添加上下面这条规则即可让1963 port即提供对外访问
