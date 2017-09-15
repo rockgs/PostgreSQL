@@ -48,11 +48,13 @@
 | HostName          | nfs                    |  
 | PostgreSQL版本号   | 9.6.3                  | 
 
-### 4、各主机/etc/hosts配置如下：
+### 5、各主机/etc/hosts配置如下：
+```
 192.168.245.141 masterdb
 192.168.245.142 slavedb
 192.168.245.143 casecade
 192.168.245.144 nfs
+```
 
 ## 三、主节点部署及配置
 ### 1、源码编译安装Postgresql
