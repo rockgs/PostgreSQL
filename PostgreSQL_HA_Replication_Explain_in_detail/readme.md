@@ -48,6 +48,12 @@
 | HostName          | nfs                    |  
 | PostgreSQL版本号   | 9.6.3                  | 
 
+### 4、各主机/etc/hosts配置如下：
+192.168.245.141 masterdb
+192.168.245.142 slavedb
+192.168.245.143 casecade
+192.168.245.144 nfs
+
 ## 三、主节点部署及配置
 ### 1、源码编译安装Postgresql
 ```
@@ -205,5 +211,124 @@ recovery_target_timeline = 'latest'
 ### 4、启动服务并且验证主务复制是否成功
 启动备节点PostgreSQL服务
 ```
-[postgres@slavedb archive]$ /usr/local/pgsql9.6.1/bin/pg_ctl start -D /home/postgres/data9.6.1/
+[postgres@slavedb ]$ pg_ctl start
 ```
+连接备节点检查是否为recovery状态
+```
+[postgres@slavedb ]$  psql -h slavedb -U postgres -d postgres
+psql (9.6.3)
+Type "help" for help.
+
+postgres=# select pg_is_in_recovery();
+ pg_is_in_recovery 
+-------------------
+ t
+(1 row)
+```
+连接主节点检查是否备机连接成功
+```
+[postgres@slavedb ~]$ psql -h masterdb -U postgres -d postgres
+Password: 
+psql (9.6.3)
+Type "help" for help.
+postgres=# select * from pg_stat_replication;
+-[ RECORD 1 ]----+------------------------------
+pid              | 37335
+usesysid         | 16384
+usename          | repuser
+application_name | walreceiver
+client_addr      | 192.168.245.142
+client_hostname  | 
+client_port      | 46512
+backend_start    | 2017-09-14 20:13:21.110767-07
+backend_xmin     | 
+state            | streaming
+sent_location    | 0/300BD78
+write_location   | 0/300BD78
+flush_location   | 0/300BD78
+replay_location  | 0/300BD78
+sync_priority    | 0
+sync_state       | async
+```
+sync_state值为async表示当前连接上来的备机为异步复制
+连接主节点检查执行一些DML操作
+```
+[postgres@slavedb ~]$ psql -h masterdb -U postgres -d postgres
+Password: 
+psql (9.6.3)
+Type "help" for help.
+postgres=# create table t (id integer);
+CREATE TABLE
+postgres=# insert into t values(1);
+INSERT 0 1
+```
+连接备节点查看数据是否同步
+```
+[postgres@slavedb ~]$ psql -h slavedb -U postgres -d postgres
+Password: 
+psql (9.6.3)
+Type "help" for help.
+postgres=# select * from t;
+ id 
+----
+  1
+(1 row)
+```
+###5、添加PostgreSQL服务port至iptables规则中
+
+在/etc/sysconfig/iptables规则表中添加上下面这条规则即可让9610 port即提供对外访问
+```
+[root@slavedb postgresql-9.6.1]# vim /etc/sysconfig/iptables
+-A INPUT -m state --state NEW -m tcp -p tcp --dport 9610 -j ACCEPT
+```
+
+重启iptables服务
+```
+[root@slavedb postgresql-9.6.1]# service iptables restart
+```
+
+配置某个网段可以访问
+```
+[root@slavedb ~]# vim /etc/sysconfig/iptables
+-A INPUT -s 192.168.0.0/24 -j ACCEPT
+[root@slavedb ~]# service iptables restart
+```
+
+配置iptables开机时不自动启动
+```
+[root@slavedb log]# chkconfig iptables off
+```
+### 6、配置PostgreSQL服务开机自动启动
+在 /etc/rc.d/rc.local  文件中添加下面启动脚本
+```
+[root@slavedb postgresql-9.6.1]# vim /etc/rc.d/rc.local
+su postgres -c "/usr/local/pgsql9.6.1/bin/pg_ctl start -D /home/postgres/data9.6.1"
+```
+### 5、添加PostgreSQL服务port至iptables规则中（如果启用了iptables）
+
+在/etc/sysconfig/iptables规则表中添加上下面这条规则即可让1963 port即提供对外访问
+```
+[root@slavedb ]# vim /etc/sysconfig/iptables
+-A INPUT -m state --state NEW -m tcp -p tcp --dport 1963 -j ACCEPT
+```
+重启iptables服务
+```
+[root@slavedb ]# service iptables restart
+```
+配置某个网段可以访问
+```
+[root@slavedb ~]# vim /etc/sysconfig/iptables
+-A INPUT -s 192.168.245.0/24 -j ACCEPT
+[root@slavedb ~]# service iptables restart
+```
+配置iptables开机时不自动启动
+```
+[root@slavedb ]# chkconfig iptables off
+```
+### 6、配置PostgreSQL服务开机自动启动
+在 /etc/rc.d/rc.local  文件中添加下面启动脚本
+```
+[root@slavedb ]# vim /etc/rc.d/rc.local
+su postgres -c "/opt/pgsql9.6.3/bin/pg_ctl start -D /home/postgres/data63"
+```
+
