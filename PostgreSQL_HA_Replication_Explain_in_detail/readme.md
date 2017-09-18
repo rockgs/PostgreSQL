@@ -475,3 +475,4 @@ su postgres -c "/opt/pgsql9.6.3/bin/pg_ctl start -D /home/postgres/data63"
 
 ## 七、主备切换
 ### 1、关闭主节点服务
+
