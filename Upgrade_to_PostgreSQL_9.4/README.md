@@ -92,6 +92,15 @@ config:
 errors: No known data errors
 ```
 
+=========================================================
+```
+   linux重启后 zfs文件系统挂载目录丢失的问题， 通过特定的设备路径导入池：
+   zpool import -d /data01 zp1
+   1) /data01 文件块空间所在目录
+   2）zp1 zfs池名称 zp1
+```
+=========================================================
+
 ### 设置zfs默认参数 
 ```
 [root@localhost /]# zfs set atime=off zp1
